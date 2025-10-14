@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Interactive Hangul Digital Art</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Do+Hyeon&family=East+Sea+Dokdo&family=Gaegu&family=Gamja+Flower&family=Gothic+A1:wght@400;900&family=Gugi&family=Hi+Melody&family=Jua&family=Nanum+Gothic:wght@400;800&family=Nanum+Myeongjo&family=Nanum+Pen+Script&family=Noto+Sans+KR:wght@400;900&family=Single+Day&family=Song+Myung&family=Stylish&family=Sunflower:wght@300;500;700&family=Yeon+Sung&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Grandiflora+One&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Diphylleia&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Black+And+White+Picture&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; overflow: hidden; }
+        #artboard-container { background-color: #1f2937; height: calc(100vh - 180px); }
+        #canvas-wrapper {
+            transition: transform 0.3s ease-in-out; box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            cursor: grab;
+            touch-action: none;
+        }
+        #canvas-wrapper:active { cursor: grabbing; }
+        canvas { display: block; }
+        textarea { resize: none; }
+        input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 8px; background: rgba(255, 255, 255, 0.2); border-radius: 5px; outline: none; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; background: #ffffff; border-radius: 50%; cursor: pointer; border: 2px solid #38bdf8; }
+        input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; background: #ffffff; border-radius: 50%; cursor: pointer; border: 2px solid #38bdf8; }
+        .control-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+            #artboard-container { height: calc(100vh - 260px); }
+            #controls-container { padding: 0.5rem !important; }
+        }
+        
+        @media (max-width: 640px) {
+            #artboard-container { height: calc(100vh - 290px); }
+            input[type="range"]::-webkit-slider-thumb { width: 24px; height: 24px; }
+            input[type="range"]::-moz-range-thumb { width: 24px; height: 24px; }
+            button, select, input[type="color"] { min-height: 44px; min-width: 44px; }
+            .control-btn { padding: 0.625rem !important; }
+        }
+        
+        body.light-mode { background-color: #f3f4f6; color: #1f2937; }
+        body.light-mode #artboard-container { background-color: #e5e7eb; }
+        body.light-mode .bg-gray-900 { background-color: #f3f4f6 !important; }
+        body.light-mode .bg-gray-800\/70 { background-color: rgba(255, 255, 255, 0.8) !important; color: #1f2937; }
+        body.light-mode .bg-gray-700\/80 { background-color: rgba(255, 255, 255, 0.9) !important; color: #1f2937; }
+        body.light-mode .text-white { color: #1f2937 !important; }
+        body.light-mode .text-gray-400 { color: #6b7280 !important; }
+        body.light-mode .bg-black { background-color: #ffffff !important; }
+        body.light-mode .control-btn { background-color: rgba(255, 255, 255, 0.9) !important; color: #1f2937; }
+        body.light-mode #controls-container { background-color: rgba(255, 255, 255, 0.6) !important; }
+        body.light-mode select, body.light-mode input[type="text"], body.light-mode textarea { color: #1f2937; }
+        body.light-mode #hangul-input::placeholder { color: #9ca3af; }
+        body.light-mode input[type="range"] { background: rgba(0, 0, 0, 0.1); }
+        body.light-mode #help-modal .bg-white { background-color: #ffffff !important; }
+        body.light-mode #help-modal .dark\:bg-gray-800 { background-color: #f3f4f6 !important; }
+        body.light-mode #help-modal .dark\:text-white { color: #1f2937 !important; }
+        body.light-mode #help-modal .dark\:text-gray-300 { color: #4b5563 !important; }
+        body.light-mode #help-modal .dark\:text-cyan-400 { color: #0891b2 !important; }
+        body.light-mode #help-modal .dark\:hover\:text-gray-200 { color: #1f2937 !important; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+    <main id="artboard-container" class="w-full h-screen flex justify-center items-center">
+        <div id="canvas-wrapper" class="relative">
+            <canvas id="art-canvas"></canvas>
+            <video id="bg-video" class="absolute top-0 left-0 w-full h-full object-cover -z-10" loop muted playsinline></video>
+        </div>
+    </main>
+    <div id="controls-container" class="fixed bottom-0 left-0 right-0 p-2 sm:p-3 bg-black bg-opacity-40 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto flex flex-col gap-3">
+            <!-- 1행 -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-3">
+                <textarea id="hangul-input" placeholder="한글을 입력하세요..." rows="1" class="w-full px-3 py-2 bg-gray-800/70 rounded-md focus:ring-2 focus:ring-cyan-500 transition text-sm sm:text-base"></textarea>
+                <div class="flex items-center justify-around md:justify-end gap-1 sm:gap-2">
+                    <div class="flex items-center gap-1 sm:gap-2"><label for="bg-color-picker" class="text-sm">배경</label><input type="color" id="bg-color-picker" value="#111827"></div>
+                    <div class="flex items-center gap-1 sm:gap-2"><label for="text-color-picker" class="text-sm">글자</label><input type="color" id="text-color-picker" value="#ffffff"></div>
+                    <button id="bg-file-upload-btn" class="px-2 sm:px-3 py-2 bg-gray-700/80 rounded-md text-xs sm:text-sm flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        <span class="hidden sm:inline">배경 파일</span>
+                    </button>
+                    <input type="file" id="bg-file-input" class="hidden" accept="image/*,video/*">
+                </div>
+                <select id="font-selector" class="w-full px-3 py-2 bg-gray-800/70 rounded-md focus:ring-2 focus:ring-cyan-500 text-sm sm:text-base">
+                     <option value="Noto Sans KR">Noto Sans KR</option><option value="Black Han Sans">Black Han Sans</option><option value="Jua">Jua</option><option value="Do Hyeon">Do Hyeon</option><option value="Nanum Gothic">Nanum Gothic</option><option value="Nanum Pen Script">Nanum Pen Script</option><option value="Gothic A1">Gothic A1</option><option value="Nanum Myeongjo">Nanum Myeongjo</option><option value="East Sea Dokdo">East Sea Dokdo</option><option value="Gaegu">Gaegu</option><option value="Gamja Flower">Gamja Flower</option><option value="Gugi">Gugi</option><option value="Hi Melody">Hi Melody</option><option value="Single Day">Single Day</option><option value="Song Myung">Song Myung</option><option value="Stylish">Stylish</option><option value="Sunflower">Sunflower</option><option value="Yeon Sung">Yeon Sung</option><option value="Grandiflora One">Grandiflora One</option><option value="Diphylleia">Diphylleia</option><option value="Black And White Picture">Black And White Picture</option>
+                </select>
+            </div>
+            <!-- 2행 -->
+            <div class="flex flex-col md:flex-row gap-3 items-start md:items-center">
+                <!-- 강도, 방향, 크기, 간격 -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-1">
+                    <div class="flex items-center gap-1 sm:gap-3"><span class="text-sm">강도</span><input type="range" id="intensity-slider" min="0" max="100" value="25"></div>
+                    <div class="relative flex items-center gap-2 pt-4"><span class="text-xs text-gray-400">가로</span><input type="range" id="direction-slider" min="0" max="100" value="50" class="w-full"><span class="text-xs text-gray-400">세로</span><span class="absolute -top-1 left-1/2 -translate-x-1/2 text-sm">방향</span></div>
+                    <div class="flex items-center gap-1 sm:gap-3"><span class="text-sm">크기</span><input type="range" id="font-size-slider" min="10" max="150" value="100"></div>
+                    <div class="flex items-center gap-1 sm:gap-3"><span class="text-sm">간격</span><input type="range" id="spacing-slider" min="0" max="100" value="0"></div>
+                </div>
+                <!-- 실행취소/다시실행/초기화 -->
+                <div class="flex items-center gap-2 ml-0 md:ml-4">
+                    <button id="undo-btn" class="control-btn p-2 bg-gray-700/80 rounded-md"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg></button>
+                    <button id="redo-btn" class="control-btn p-2 bg-gray-700/80 rounded-md"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l6-6m0 0l-6-6m6 6H9a6 6 0 000 12h3" /></svg></button>
+                    <button id="reset-btn" class="control-btn p-2 bg-gray-700/80 rounded-md"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg></button>
+                </div>
+                <!-- 사이즈, 녹화 -->
+                <div class="flex items-center justify-center md:justify-end gap-2 sm:gap-4 flex-wrap">
+                     <select id="size-selector" class="px-2 sm:px-3 py-2 bg-gray-800/70 rounded-md text-xs sm:text-sm">
+                        <option value="square">1920x1920 (정사각)</option><option value="ppt">1920x1080 (PPT)</option><option value="reels">1080x1920 (릴스)</option><option value="landscape">4000x3000 (가로)</option>
+                    </select>
+                    <button id="record-btn" class="px-2 sm:px-3 py-2 bg-red-600/80 rounded-md text-xs sm:text-sm">녹화 시작</button>
+                    <select id="format-selector" class="px-2 py-2 bg-gray-800/70 text-xs sm:text-sm rounded-md"><option value="gif">GIF</option><option value="webm" selected>WebM</option></select>
+                </div>
+            </div>
+            <!-- 3행 -->
+            <div class="flex items-center justify-between gap-2 sm:gap-3">
+                <div class="flex items-center gap-1 sm:gap-2">
+                    <button id="add-slide-btn" class="px-2 sm:px-3 py-1 bg-cyan-600/80 rounded-md text-xs sm:text-sm">슬라이드 추가</button>
+                    <button id="delete-slide-btn" class="px-2 sm:px-3 py-1 bg-red-600/80 rounded-md text-xs sm:text-sm">삭제</button>
+                    <button id="prev-slide-btn" class="px-2 sm:px-3 py-1 bg-gray-700/80 rounded-md text-xs sm:text-sm">이전</button>
+                    <span id="slide-indicator" class="text-xs sm:text-sm">1 / 1</span>
+                    <button id="next-slide-btn" class="px-2 sm:px-3 py-1 bg-gray-700/80 rounded-md text-xs sm:text-sm">다음</button>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="help-btn" class="p-2 bg-gray-700/80 rounded-md">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    <button id="lang-toggle-btn" class="px-2 py-1 bg-gray-700/80 rounded-md text-xs sm:text-sm font-semibold">
+                        <span id="lang-text">KOR</span>
+                    </button>
+                    <button id="theme-toggle-btn" class="p-2 bg-gray-700/80 rounded-md">
+                        <svg id="theme-icon-moon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                        </svg>
+                        <svg id="theme-icon-sun" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 hidden" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <footer class="fixed bottom-2 left-1/2 -translate-x-1/2 text-xs text-gray-400">
+        <a href="http://litt.ly/chichiboo" target="_blank">created by. 교육뮤지컬 꿈꾸는 치수쌤</a>
+    </footer>
+
+    <!-- 설명서 모달 -->
+    <div id="help-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">한글춤 설명서 📚</h2>
+                <button id="close-help-btn" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="text-gray-700 dark:text-gray-300 space-y-4">
+                <p class="text-center text-lg font-semibold text-cyan-600 dark:text-cyan-400">한글을 사랑하고 아끼는 마음으로 만들었습니다 ❤️</p>
+                
+                <div class="space-y-3">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white">✏️ 텍스트 입력</h3>
+                    <p>위쪽 상자에 한글을 입력하면 예쁜 글자가 화면에 나타나요!</p>
+                </div>
+
+                <div class="space-y-3">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white">🎨 색상 바꾸기</h3>
+                    <p><strong>배경</strong> 버튼을 누르면 뒤 배경색을 바꿀 수 있어요.</p>
+                    <p><strong>글자</strong> 버튼을 누르면 글자 색을 바꿀 수 있어요.</p>
+                </div>
+
+                <div class="space-y-3">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white">🖼️ 배경 파일</h3>
+                    <p>사진이나 동영상을 배경으로 넣을 수 있어요!</p>
+                </div>
+
+                <div class="space-y-3">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white">📝 폰트 선택</h3>
+                    <p>21가지 예쁜 한글 글꼴 중에서 골라보세요.</p>
+                </div>
+
+                <div class="space-y-3">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white">🎮 슬라이더 조절</h3>
+                    <p><strong>강도</strong>: 글자가 얼마나 움직일지 정해요.</p>
+                    <p><strong>방향</strong>: 가로/세로로 움직이는 방향을 정해요.</p>
+                    <p><strong>크기</strong>: 글자 크기를 키우거나 줄여요.</p>
+                    <p><strong>간격</strong>: 글자 사이 간격을 조절해요.</p>
+                </div>
+
+                <div class="space-y-3">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white">↩️ 실행 취소/다시 실행/초기화</h3>
+                    <p>화살표 버튼으로 이전 상태로 돌아가거나 다시 실행할 수 있어요.</p>
+                    <p>새로고침 버튼을 누르면 모든 슬라이드를 지우고 처음 상태('한글춤' 1개)로 돌아가요.</p>
+                </div>
+
+                <div class="space-y-3">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white">📹 녹화하기</h3>
+                    <p><strong>GIF</strong> 또는 <strong>WebM</strong> 형식을 선택하세요.</p>
+                    <p><strong>녹화 시작</strong> 버튼을 누르면 녹화가 시작돼요!</p>
+                    <p>다시 버튼을 누르면 멈추고 자동으로 다운로드돼요.</p>
+                </div>
+
+                <div class="space-y-3">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white">🎞️ 슬라이드 관리</h3>
+                    <p><strong>슬라이드 추가</strong>: 새로운 화면을 만들어요.</p>
+                    <p><strong>삭제</strong>: 현재 슬라이드를 지워요. (마지막 1개는 지울 수 없어요)</p>
+                    <p><strong>이전/다음</strong>: 슬라이드를 넘겨가며 볼 수 있어요.</p>
+                </div>
+
+                <div class="space-y-3">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white">🌍 언어 변경</h3>
+                    <p>KOR/ENG 버튼을 누르면 한국어와 영어로 바꿀 수 있어요!</p>
+                </div>
+
+                <div class="space-y-3">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white">🌙 테마 바꾸기</h3>
+                    <p>달/해 버튼을 누르면 어두운 모드와 밝은 모드를 바꿀 수 있어요!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const elements = {
+            artboardContainer: document.getElementById('artboard-container'),
+            canvasWrapper: document.getElementById('canvas-wrapper'),
+            canvas: document.getElementById('art-canvas'),
+            bgVideo: document.getElementById('bg-video'),
+            hangulInput: document.getElementById('hangul-input'),
+            bgColorPicker: document.getElementById('bg-color-picker'),
+            textColorPicker: document.getElementById('text-color-picker'),
+            bgFileUploadBtn: document.getElementById('bg-file-upload-btn'),
+            bgFileInput: document.getElementById('bg-file-input'),
+            fontSelector: document.getElementById('font-selector'),
+            intensitySlider: document.getElementById('intensity-slider'),
+            directionSlider: document.getElementById('direction-slider'),
+            fontSizeSlider: document.getElementById('font-size-slider'),
+            spacingSlider: document.getElementById('spacing-slider'),
+            sizeSelector: document.getElementById('size-selector'),
+            addSlideBtn: document.getElementById('add-slide-btn'),
+            deleteSlideBtn: document.getElementById('delete-slide-btn'),
+            prevSlideBtn: document.getElementById('prev-slide-btn'),
+            nextSlideBtn: document.getElementById('next-slide-btn'),
+            slideIndicator: document.getElementById('slide-indicator'),
+            undoBtn: document.getElementById('undo-btn'),
+            redoBtn: document.getElementById('redo-btn'),
+            resetBtn: document.getElementById('reset-btn'),
+            recordBtn: document.getElementById('record-btn'),
+            formatSelector: document.getElementById('format-selector'),
+            themeToggleBtn: document.getElementById('theme-toggle-btn'),
+            themeIconMoon: document.getElementById('theme-icon-moon'),
+            themeIconSun: document.getElementById('theme-icon-sun'),
+            helpBtn: document.getElementById('help-btn'),
+            helpModal: document.getElementById('help-modal'),
+            closeHelpBtn: document.getElementById('close-help-btn'),
+            langToggleBtn: document.getElementById('lang-toggle-btn'),
+            langText: document.getElementById('lang-text'),
+        };
+        const ctx = elements.canvas.getContext('2d');
+        const SIZES = {
+            square: { w: 1920, h: 1920 }, ppt: { w: 1920, h: 1080 },
+            reels: { w: 1080, h: 1920 }, landscape: { w: 4000, h: 3000 }
+        };
+        
+        const TRANSLATIONS = {
+            kor: {
+                inputPlaceholder: '한글을 입력하세요...',
+                bgLabel: '배경',
+                textLabel: '글자',
+                bgFile: '배경 파일',
+                intensity: '강도',
+                direction: '방향',
+                horizontal: '가로',
+                vertical: '세로',
+                size: '크기',
+                spacing: '간격',
+                square: '정사각',
+                ppt: 'PPT',
+                reels: '릴스',
+                landscape: '가로',
+                recordStart: '녹화 시작',
+                recordStop: '녹화 중지',
+                saving: '저장 중...',
+                addSlide: '슬라이드 추가',
+                deleteSlide: '삭제',
+                prevSlide: '이전',
+                nextSlide: '다음',
+                helpTitle: '한글춤 설명서 📚',
+                helpSubtitle: '한글을 사랑하고 아끼는 마음으로 만들었습니다 ❤️',
+                helpText: '✏️ 텍스트 입력',
+                helpTextDesc: '위쪽 상자에 한글을 입력하면 예쁜 글자가 화면에 나타나요!',
+                helpColor: '🎨 색상 바꾸기',
+                helpColorDesc1: '<strong>배경</strong> 버튼을 누르면 뒤 배경색을 바꿀 수 있어요.',
+                helpColorDesc2: '<strong>글자</strong> 버튼을 누르면 글자 색을 바꿀 수 있어요.',
+                helpBgFile: '🖼️ 배경 파일',
+                helpBgFileDesc: '사진이나 동영상을 배경으로 넣을 수 있어요!',
+                helpFont: '📝 폰트 선택',
+                helpFontDesc: '21가지 예쁜 한글 글꼴 중에서 골라보세요.',
+                helpSlider: '🎮 슬라이더 조절',
+                helpSliderDesc1: '<strong>강도</strong>: 글자가 얼마나 움직일지 정해요.',
+                helpSliderDesc2: '<strong>방향</strong>: 가로/세로로 움직이는 방향을 정해요.',
+                helpSliderDesc3: '<strong>크기</strong>: 글자 크기를 키우거나 줄여요.',
+                helpSliderDesc4: '<strong>간격</strong>: 글자 사이 간격을 조절해요.',
+                helpUndo: '↩️ 실행 취소/다시 실행/초기화',
+                helpUndoDesc1: '화살표 버튼으로 이전 상태로 돌아가거나 다시 실행할 수 있어요.',
+                helpUndoDesc2: '새로고침 버튼을 누르면 모든 슬라이드를 지우고 처음 상태(\'한글춤\' 1개)로 돌아가요.',
+                helpRecord: '📹 녹화하기',
+                helpRecordDesc1: '<strong>GIF</strong> 또는 <strong>WebM</strong> 형식을 선택하세요.',
+                helpRecordDesc2: '<strong>녹화 시작</strong> 버튼을 누르면 녹화가 시작돼요!',
+                helpRecordDesc3: '다시 버튼을 누르면 멈추고 자동으로 다운로드돼요.',
+                helpSlide: '🎞️ 슬라이드 관리',
+                helpSlideDesc1: '<strong>슬라이드 추가</strong>: 새로운 화면을 만들어요.',
+                helpSlideDesc2: '<strong>삭제</strong>: 현재 슬라이드를 지워요. (마지막 1개는 지울 수 없어요)',
+                helpSlideDesc3: '<strong>이전/다음</strong>: 슬라이드를 넘겨가며 볼 수 있어요.',
+                helpLang: '🌍 언어 변경',
+                helpLangDesc: 'KOR/ENG 버튼을 누르면 한국어와 영어로 바꿀 수 있어요!',
+                helpTheme: '🌙 테마 바꾸기',
+                helpThemeDesc: '달/해 버튼을 누르면 어두운 모드와 밝은 모드를 바꿀 수 있어요!',
+            },
+            eng: {
+                inputPlaceholder: 'Enter Hangul text...',
+                bgLabel: 'BG',
+                textLabel: 'Text',
+                bgFile: 'BG File',
+                intensity: 'Power',
+                direction: 'Dir',
+                horizontal: 'H',
+                vertical: 'V',
+                size: 'Size',
+                spacing: 'Space',
+                square: 'Square',
+                ppt: 'PPT',
+                reels: 'Reels',
+                landscape: 'Wide',
+                recordStart: 'Record',
+                recordStop: 'Stop',
+                saving: 'Saving...',
+                addSlide: 'Add Slide',
+                deleteSlide: 'Delete',
+                prevSlide: 'Prev',
+                nextSlide: 'Next',
+                helpTitle: 'Hangul Dance Guide 📚',
+                helpSubtitle: 'Made with love for Hangul ❤️',
+                helpText: '✏️ Text Input',
+                helpTextDesc: 'Type Hangul in the top box and watch beautiful letters appear!',
+                helpColor: '🎨 Colors',
+                helpColorDesc1: 'Click <strong>BG</strong> button to change background color.',
+                helpColorDesc2: 'Click <strong>Text</strong> button to change text color.',
+                helpBgFile: '🖼️ Background File',
+                helpBgFileDesc: 'Upload images or videos as background!',
+                helpFont: '📝 Font Selection',
+                helpFontDesc: 'Choose from 21 beautiful Hangul fonts.',
+                helpSlider: '🎮 Slider Controls',
+                helpSliderDesc1: '<strong>Power</strong>: How much the text moves.',
+                helpSliderDesc2: '<strong>Direction</strong>: Horizontal/vertical movement.',
+                helpSliderDesc3: '<strong>Size</strong>: Make text bigger or smaller.',
+                helpSliderDesc4: '<strong>Space</strong>: Adjust spacing between letters.',
+                helpUndo: '↩️ Undo/Redo/Reset',
+                helpUndoDesc1: 'Use arrow buttons to undo or redo actions.',
+                helpUndoDesc2: 'Reset button clears all slides and returns to default (\'한글춤\').',
+                helpRecord: '📹 Recording',
+                helpRecordDesc1: 'Choose <strong>GIF</strong> or <strong>WebM</strong> format.',
+                helpRecordDesc2: 'Click <strong>Record</strong> button to start recording!',
+                helpRecordDesc3: 'Click again to stop and auto-download.',
+                helpSlide: '🎞️ Slide Management',
+                helpSlideDesc1: '<strong>Add Slide</strong>: Create a new slide.',
+                helpSlideDesc2: '<strong>Delete</strong>: Remove current slide (minimum 1 kept).',
+                helpSlideDesc3: '<strong>Prev/Next</strong>: Navigate through slides.',
+                helpLang: '🌍 Language',
+                helpLangDesc: 'Click KOR/ENG button to switch between Korean and English!',
+                helpTheme: '🌙 Theme Toggle',
+                helpThemeDesc: 'Click moon/sun button to switch between dark and light mode!',
+            }
+        };
+
+        let currentLang = 'kor';
+        
+        let slides = [];
+        let currentSlideIndex = 0;
+        let selectedCharIndex = null;
+        let charBounds = [];
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+        let textStartPos = { x: 0, y: 0 };
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let isRecording = false;
+        let animationFrameId;
+        let gifRecorder = null;
+        let bgImageElement = null;
+
+        function createSlide() {
+            const newSlide = {
+                text: '한글춤', bgColor: '#111827', textColor: '#ffffff',
+                font: 'Noto Sans KR',
+                bgType: 'color', bgImage: null, bgVideo: null,
+                intensity: 25, direction: 50, fontSize: 100, spacing: 0,
+                charColors: [], textPos: { x: 0, y: 0 },
+                history: { undo: [], redo: [] }
+            };
+            newSlide.history.undo.push(cloneState(newSlide));
+            return newSlide;
+        }
+
+        function cloneState(state) {
+            return JSON.parse(JSON.stringify({
+                ...state,
+                history: undefined,
+            }));
+        }
+
+        function pushHistory(slide) {
+            const stateToSave = cloneState(slide);
+            slide.history.undo.push(stateToSave);
+            slide.history.redo = [];
+            updateUndoRedoButtons();
+        }
+
+        function undo() {
+            const slide = slides[currentSlideIndex];
+            if (slide.history.undo.length <= 1) return;
+            const currentState = slide.history.undo.pop();
+            slide.history.redo.push(currentState);
+            const prevState = slide.history.undo[slide.history.undo.length - 1];
+            applyState(slide, prevState);
+            loadSlideState(currentSlideIndex, false);
+        }
+
+        function redo() {
+            const slide = slides[currentSlideIndex];
+            if (slide.history.redo.length === 0) return;
+            const nextState = slide.history.redo.pop();
+            slide.history.undo.push(nextState);
+            applyState(slide, nextState);
+            loadSlideState(currentSlideIndex, false);
+        }
+
+        function reset() {
+            slides = [createSlide()];
+            currentSlideIndex = 0;
+            loadSlideState(0, false);
+        }
+
+        function deleteSlide() {
+            if (slides.length <= 1) return;
+            
+            slides.splice(currentSlideIndex, 1);
+            
+            if (currentSlideIndex >= slides.length) {
+                currentSlideIndex = slides.length - 1;
+            }
+            
+            loadSlideState(currentSlideIndex, false);
+        }
+
+        function applyState(slide, state) {
+             Object.assign(slide, cloneState(state));
+        }
+        
+        function updateUndoRedoButtons() {
+            const slide = slides[currentSlideIndex];
+            elements.undoBtn.disabled = slide.history.undo.length <= 1;
+            elements.redoBtn.disabled = slide.history.redo.length === 0;
+        }
+
+        function saveCurrentSlideState(addToHistory = true) {
+            if (!slides[currentSlideIndex]) return;
+            const s = slides[currentSlideIndex];
+            s.text = elements.hangulInput.value || '';
+            s.bgColor = elements.bgColorPicker.value;
+            s.textColor = elements.textColorPicker.value;
+            s.font = elements.fontSelector.value;
+            s.intensity = elements.intensitySlider.value;
+            s.direction = elements.directionSlider.value;
+            s.fontSize = elements.fontSizeSlider.value;
+            s.spacing = elements.spacingSlider.value;
+
+            if (addToHistory) {
+                pushHistory(s);
+            }
+        }
+
+        function loadSlideState(index, savePrev = true) {
+            if (savePrev) saveCurrentSlideState(false);
+            
+            if (!slides[index]) return;
+            currentSlideIndex = index;
+            selectedCharIndex = null;
+            const s = slides[index];
+
+            elements.hangulInput.value = s.text;
+            elements.bgColorPicker.value = s.bgColor;
+            elements.textColorPicker.value = s.textColor;
+            elements.fontSelector.value = s.font;
+            elements.intensitySlider.value = s.intensity;
+            elements.directionSlider.value = s.direction;
+            elements.fontSizeSlider.value = s.fontSize;
+            elements.spacingSlider.value = s.spacing;
+
+            if (s.bgType === 'image' && s.bgImage) {
+                bgImageElement = new Image();
+                bgImageElement.src = s.bgImage;
+                elements.bgVideo.src = '';
+            } else if (s.bgType === 'video' && s.bgVideo) {
+                bgImageElement = null;
+                elements.bgVideo.src = s.bgVideo;
+                elements.bgVideo.play();
+            } else {
+                bgImageElement = null;
+                elements.bgVideo.src = '';
+            }
+
+            updateSlideIndicator();
+            updateUndoRedoButtons();
+        }
+
+        function updateSlideIndicator() {
+            elements.slideIndicator.textContent = `${currentSlideIndex + 1} / ${slides.length}`;
+            elements.deleteSlideBtn.disabled = slides.length <= 1;
+        }
+        
+        function updateCanvasSize() {
+            const sizeKey = elements.sizeSelector.value;
+            const { w, h } = SIZES[sizeKey];
+            elements.canvas.width = w;
+            elements.canvas.height = h;
+            elements.canvasWrapper.style.width = `${w}px`;
+            elements.canvasWrapper.style.height = `${h}px`;
+            fitCanvasToScreen();
+        }
+
+        function fitCanvasToScreen() {
+            const { clientWidth: containerW, clientHeight: containerH } = elements.artboardContainer;
+            const { w, h } = SIZES[elements.sizeSelector.value];
+            const scale = Math.min(containerW / w, containerH / h) * 0.9;
+            elements.canvasWrapper.style.transform = `scale(${scale})`;
+        }
+        
+        function animate(time) {
+            animationFrameId = requestAnimationFrame(animate);
+            const slide = slides[currentSlideIndex];
+            if (!slide) return;
+
+            ctx.clearRect(0, 0, elements.canvas.width, elements.canvas.height);
+            if (slide.bgType === 'color') {
+                ctx.fillStyle = slide.bgColor;
+                ctx.fillRect(0, 0, elements.canvas.width, elements.canvas.height);
+            } else if (slide.bgType === 'image' && bgImageElement && bgImageElement.complete) {
+                const imgRatio = bgImageElement.width / bgImageElement.height;
+                const canvasRatio = elements.canvas.width / elements.canvas.height;
+                let drawWidth, drawHeight, drawX, drawY;
+                
+                if (imgRatio > canvasRatio) {
+                    drawHeight = elements.canvas.height;
+                    drawWidth = drawHeight * imgRatio;
+                    drawX = (elements.canvas.width - drawWidth) / 2;
+                    drawY = 0;
+                } else {
+                    drawWidth = elements.canvas.width;
+                    drawHeight = drawWidth / imgRatio;
+                    drawX = 0;
+                    drawY = (elements.canvas.height - drawHeight) / 2;
+                }
+                ctx.drawImage(bgImageElement, drawX, drawY, drawWidth, drawHeight);
+            } else if (slide.bgType === 'video' && elements.bgVideo.readyState >= 2) {
+                 ctx.drawImage(elements.bgVideo, 0, 0, elements.canvas.width, elements.canvas.height);
+            }
+            
+            const baseFontSize = elements.canvas.height / 5;
+            const fontSizeMultiplier = slide.fontSize / 100;
+            const finalFontSize = baseFontSize * fontSizeMultiplier;
+            const letterSpacing = (finalFontSize / 2) * (slide.spacing / 100);
+            ctx.font = `900 ${finalFontSize}px ${slide.font}`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const lineHeight = finalFontSize * 1.2;
+
+            const lines = slide.text.split('\n');
+            const totalTextHeight = lines.length * lineHeight;
+            let currentY = (elements.canvas.height - totalTextHeight) / 2 + lineHeight / 2;
+
+            charBounds = [];
+            let charCounter = 0;
+            const totalChars = slide.text.replace(/\n/g, '').length;
+
+            lines.forEach(line => {
+                const chars = line.split('');
+                const totalWidth = chars.reduce((w, char) => w + ctx.measureText(char).width, 0) + Math.max(0, chars.length - 1) * letterSpacing;
+                let currentX = (elements.canvas.width - totalWidth) / 2;
+
+                chars.forEach((char) => {
+                    const charWidth = ctx.measureText(char).width;
+                    const charMetrics = ctx.measureText(char);
+                    const charHeight = charMetrics.actualBoundingBoxAscent + charMetrics.actualBoundingBoxDescent;
+                    
+                    const charX = currentX + charWidth / 2 + slide.textPos.x;
+                    const charY = currentY + slide.textPos.y;
+                    
+                    charBounds.push({ x: currentX + slide.textPos.x, y: charY - charHeight/2, width: charWidth, height: charHeight, index: charCounter });
+
+                    ctx.save();
+                    ctx.translate(charX, charY);
+                    
+                    if (selectedCharIndex === charCounter) {
+                        ctx.fillStyle = 'rgba(0, 255, 255, 0.3)';
+                        ctx.fillRect(-charWidth/2 - 10, -charHeight/2 - 10, charWidth + 20, charHeight + 20);
+                    }
+                    
+                    applyAnimation(ctx, charCounter, time, slide.intensity, slide.direction);
+
+                    ctx.fillStyle = slide.charColors[charCounter] || slide.textColor;
+                    ctx.fillText(char, 0, 0);
+                    ctx.restore();
+                    currentX += charWidth + letterSpacing;
+                    charCounter++;
+                });
+                currentY += lineHeight;
+            });
+            
+            if (isRecording && gifRecorder) {
+                gifRecorder.addFrame(ctx, {copy: true, delay: 33});
+            }
+        }
+
+        function applyAnimation(ctx, index, time, intensityVal, directionVal) {
+            const lerp = (a, b, t) => a + t * (b - a);
+            const easeOutElastic = (x) => {
+                const c4 = (2 * Math.PI) / 3;
+                return x === 0 ? 0 : x === 1 ? 1 : Math.pow(2, -10 * x) * Math.sin((x * 10 - 0.75) * c4) + 1;
+            };
+            const easeInQuad = (x) => x * x;
+
+            const intensity = 1 + intensityVal / 15.0;
+            const direction = directionVal / 100.0;
+            const stretch = 1 + (intensity - 1);
+            const squash = 1 / stretch;
+
+            const finalScaleX = lerp(stretch, squash, direction);
+            const finalScaleY = lerp(squash, stretch, direction);
+            
+            const keyframes = [
+                { t: 0, scaleX: 1, scaleY: 1 },
+                { t: 0.3, scaleX: finalScaleX, scaleY: finalScaleY },
+                { t: 1, scaleX: 1, scaleY: 1 }
+            ];
+
+            const duration = 2000;
+            const progress = (time % duration) / duration;
+            
+            let currentFrame = keyframes[0], nextFrame = keyframes[1];
+            for (let i = 0; i < keyframes.length - 1; i++) {
+                if (progress >= keyframes[i].t && progress <= keyframes[i + 1].t) {
+                    currentFrame = keyframes[i]; nextFrame = keyframes[i + 1]; break;
+                }
+            }
+            
+            const segmentDuration = nextFrame.t - currentFrame.t;
+            const segmentProgress = segmentDuration === 0 ? 0 : (progress - currentFrame.t) / segmentDuration;
+            
+            let easedProgress = (currentFrame.t === 0) ? easeInQuad(segmentProgress) : easeOutElastic(segmentProgress);
+
+            const scaleX = lerp(currentFrame.scaleX, nextFrame.scaleX, easedProgress);
+            const scaleY = lerp(currentFrame.scaleY, nextFrame.scaleY, easedProgress);
+
+            ctx.scale(scaleX, scaleY);
+        }
+        
+        function setupEventListeners() {
+            window.addEventListener('resize', fitCanvasToScreen);
+            
+            ['hangulInput', 'bgColorPicker', 'fontSelector', 'intensitySlider', 'directionSlider', 'fontSizeSlider', 'spacingSlider'].forEach(id => {
+                elements[id].addEventListener('input', () => saveCurrentSlideState());
+            });
+
+            elements.textColorPicker.addEventListener('input', (e) => {
+                const slide = slides[currentSlideIndex];
+                if(selectedCharIndex !== null) {
+                    slide.charColors[selectedCharIndex] = e.target.value;
+                } else {
+                    slide.textColor = e.target.value;
+                    slide.charColors = [];
+                }
+                saveCurrentSlideState();
+            });
+
+            elements.sizeSelector.addEventListener('change', updateCanvasSize);
+
+            elements.bgFileUploadBtn.addEventListener('click', () => elements.bgFileInput.click());
+            elements.bgFileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                const slide = slides[currentSlideIndex];
+                if (!file) return;
+
+                const url = URL.createObjectURL(file);
+                if(file.type.startsWith('image/')) {
+                    slide.bgType = 'image'; 
+                    slide.bgImage = url; 
+                    slide.bgVideo = null;
+                    bgImageElement = new Image();
+                    bgImageElement.onload = () => saveCurrentSlideState();
+                    bgImageElement.src = url;
+                    elements.bgVideo.src = '';
+                } else if(file.type.startsWith('video/')) {
+                    slide.bgType = 'video'; 
+                    slide.bgVideo = url; 
+                    slide.bgImage = null;
+                    bgImageElement = null;
+                    elements.bgVideo.src = url;
+                    elements.bgVideo.play();
+                    saveCurrentSlideState();
+                }
+            });
+            
+            elements.canvasWrapper.addEventListener('pointerdown', (e) => {
+                if (!e.isPrimary) return;
+                isDragging = true;
+                dragStart.x = e.clientX;
+                dragStart.y = e.clientY;
+                textStartPos = { ...slides[currentSlideIndex].textPos };
+                elements.canvasWrapper.setPointerCapture(e.pointerId);
+            });
+
+            window.addEventListener('pointermove', (e) => {
+                if (!isDragging || !e.isPrimary) return;
+                const dx = e.clientX - dragStart.x;
+                const dy = e.clientY - dragStart.y;
+                const slide = slides[currentSlideIndex];
+                const transform = elements.canvasWrapper.style.transform;
+                const scaleMatch = transform.match(/scale\(([^)]+)\)/);
+                const scale = scaleMatch ? parseFloat(scaleMatch[1]) : 1;
+
+                slide.textPos.x = textStartPos.x + dx / scale;
+                slide.textPos.y = textStartPos.y + dy / scale;
+            });
+            
+            window.addEventListener('pointerup', (e) => {
+                if (!isDragging || !e.isPrimary) return;
+                isDragging = false;
+                elements.canvasWrapper.releasePointerCapture(e.pointerId);
+
+                const dx = e.clientX - dragStart.x;
+                const dy = e.clientY - dragStart.y;
+                if (Math.sqrt(dx * dx + dy * dy) < 10) {
+                    handleCanvasTap(e);
+                } else {
+                    saveCurrentSlideState();
+                }
+            });
+            
+            function handleCanvasTap(e) {
+                const rect = elements.canvas.getBoundingClientRect();
+                const scaleX = elements.canvas.width / rect.width;
+                const scaleY = elements.canvas.height / rect.height;
+                const x = (e.clientX - rect.left) * scaleX;
+                const y = (e.clientY - rect.top) * scaleY;
+
+                let clickedChar = null;
+                for(const bound of charBounds) {
+                    if (x >= bound.x && x <= bound.x + bound.width && y >= bound.y && y <= bound.y + bound.height) {
+                        clickedChar = bound; break;
+                    }
+                }
+                selectedCharIndex = clickedChar ? ((selectedCharIndex === clickedChar.index) ? null : clickedChar.index) : null;
+            }
+
+            elements.addSlideBtn.addEventListener('click', () => { slides.push(createSlide()); loadSlideState(slides.length - 1); });
+            elements.deleteSlideBtn.addEventListener('click', deleteSlide);
+            elements.prevSlideBtn.addEventListener('click', () => { loadSlideState((currentSlideIndex - 1 + slides.length) % slides.length); });
+            elements.nextSlideBtn.addEventListener('click', () => { loadSlideState((currentSlideIndex + 1) % slides.length); });
+            
+            elements.undoBtn.addEventListener('click', undo);
+            elements.redoBtn.addEventListener('click', redo);
+            elements.resetBtn.addEventListener('click', reset);
+            
+            elements.recordBtn.addEventListener('click', handleRecord);
+            elements.themeToggleBtn.addEventListener('click', toggleTheme);
+            elements.langToggleBtn.addEventListener('click', toggleLanguage);
+            
+            elements.helpBtn.addEventListener('click', () => {
+                elements.helpModal.classList.remove('hidden');
+            });
+            
+            elements.closeHelpBtn.addEventListener('click', () => {
+                elements.helpModal.classList.add('hidden');
+            });
+            
+            elements.helpModal.addEventListener('click', (e) => {
+                if (e.target === elements.helpModal) {
+                    elements.helpModal.classList.add('hidden');
+                }
+            });
+        }
+        
+        function toggleTheme() {
+            const isLightMode = document.body.classList.toggle('light-mode');
+            localStorage.setItem('theme', isLightMode ? 'light' : 'dark');
+            
+            if (isLightMode) {
+                elements.themeIconMoon.classList.add('hidden');
+                elements.themeIconSun.classList.remove('hidden');
+            } else {
+                elements.themeIconMoon.classList.remove('hidden');
+                elements.themeIconSun.classList.add('hidden');
+            }
+        }
+        
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'light') {
+                document.body.classList.add('light-mode');
+                elements.themeIconMoon.classList.add('hidden');
+                elements.themeIconSun.classList.remove('hidden');
+            }
+        }
+
+        function updateLanguage() {
+            const t = TRANSLATIONS[currentLang];
+            
+            elements.hangulInput.placeholder = t.inputPlaceholder;
+            document.querySelectorAll('label[for="bg-color-picker"]')[0].textContent = t.bgLabel;
+            document.querySelectorAll('label[for="text-color-picker"]')[0].textContent = t.textLabel;
+            document.querySelector('#bg-file-upload-btn span').textContent = t.bgFile;
+            
+            const sliders = document.querySelectorAll('#controls-container .grid.grid-cols-2 > div > span.text-sm, #controls-container .grid.grid-cols-2 > div span.text-sm');
+            if (sliders[0]) sliders[0].textContent = t.intensity;
+            if (sliders[1]) sliders[1].textContent = t.size;
+            if (sliders[2]) sliders[2].textContent = t.spacing;
+            
+            const directionLabel = document.querySelector('.absolute.-top-1.left-1\\/2');
+            if (directionLabel) directionLabel.textContent = t.direction;
+            
+            const horizontalLabel = document.querySelectorAll('.text-xs.text-gray-400')[0];
+            const verticalLabel = document.querySelectorAll('.text-xs.text-gray-400')[1];
+            if (horizontalLabel) horizontalLabel.textContent = t.horizontal;
+            if (verticalLabel) verticalLabel.textContent = t.vertical;
+            
+            const sizeOptions = elements.sizeSelector.querySelectorAll('option');
+            sizeOptions[0].textContent = `1920x1920 (${t.square})`;
+            sizeOptions[1].textContent = `1920x1080 (${t.ppt})`;
+            sizeOptions[2].textContent = `1080x1920 (${t.reels})`;
+            sizeOptions[3].textContent = `4000x3000 (${t.landscape})`;
+            
+            if (elements.recordBtn.textContent.includes('녹화') || elements.recordBtn.textContent.includes('Record')) {
+                elements.recordBtn.textContent = t.recordStart;
+            } else if (elements.recordBtn.textContent.includes('중지') || elements.recordBtn.textContent.includes('Stop')) {
+                elements.recordBtn.textContent = t.recordStop;
+            } else if (elements.recordBtn.textContent.includes('저장') || elements.recordBtn.textContent.includes('Saving')) {
+                elements.recordBtn.textContent = t.saving;
+            }
+            
+            elements.addSlideBtn.textContent = t.addSlide;
+            elements.deleteSlideBtn.textContent = t.deleteSlide;
+            elements.prevSlideBtn.textContent = t.prevSlide;
+            elements.nextSlideBtn.textContent = t.nextSlide;
+            
+            document.querySelector('#help-modal h2').textContent = t.helpTitle;
+            const helpSubtitle = document.querySelector('#help-modal p.text-center');
+            helpSubtitle.textContent = t.helpSubtitle;
+            
+            const helpSections = document.querySelectorAll('#help-modal .space-y-3');
+            helpSections[0].querySelector('h3').textContent = t.helpText;
+            helpSections[0].querySelector('p').textContent = t.helpTextDesc;
+            helpSections[1].querySelector('h3').textContent = t.helpColor;
+            helpSections[1].querySelectorAll('p')[0].innerHTML = t.helpColorDesc1;
+            helpSections[1].querySelectorAll('p')[1].innerHTML = t.helpColorDesc2;
+            helpSections[2].querySelector('h3').textContent = t.helpBgFile;
+            helpSections[2].querySelector('p').textContent = t.helpBgFileDesc;
+            helpSections[3].querySelector('h3').textContent = t.helpFont;
+            helpSections[3].querySelector('p').textContent = t.helpFontDesc;
+            helpSections[4].querySelector('h3').textContent = t.helpSlider;
+            helpSections[4].querySelectorAll('p')[0].innerHTML = t.helpSliderDesc1;
+            helpSections[4].querySelectorAll('p')[1].innerHTML = t.helpSliderDesc2;
+            helpSections[4].querySelectorAll('p')[2].innerHTML = t.helpSliderDesc3;
+            helpSections[4].querySelectorAll('p')[3].innerHTML = t.helpSliderDesc4;
+            helpSections[5].querySelector('h3').textContent = t.helpUndo;
+            helpSections[5].querySelectorAll('p')[0].textContent = t.helpUndoDesc1;
+            helpSections[5].querySelectorAll('p')[1].textContent = t.helpUndoDesc2;
+            helpSections[6].querySelector('h3').textContent = t.helpRecord;
+            helpSections[6].querySelectorAll('p')[0].innerHTML = t.helpRecordDesc1;
+            helpSections[6].querySelectorAll('p')[1].innerHTML = t.helpRecordDesc2;
+            helpSections[6].querySelectorAll('p')[2].textContent = t.helpRecordDesc3;
+            helpSections[7].querySelector('h3').textContent = t.helpSlide;
+            helpSections[7].querySelectorAll('p')[0].innerHTML = t.helpSlideDesc1;
+            helpSections[7].querySelectorAll('p')[1].innerHTML = t.helpSlideDesc2;
+            helpSections[7].querySelectorAll('p')[2].innerHTML = t.helpSlideDesc3;
+            helpSections[8].querySelector('h3').textContent = t.helpLang;
+            helpSections[8].querySelector('p').textContent = t.helpLangDesc;
+            helpSections[9].querySelector('h3').textContent = t.helpTheme;
+            helpSections[9].querySelector('p').textContent = t.helpThemeDesc;
+        }
+
+        function toggleLanguage() {
+            currentLang = currentLang === 'kor' ? 'eng' : 'kor';
+            elements.langText.textContent = currentLang === 'kor' ? 'KOR' : 'ENG';
+            localStorage.setItem('language', currentLang);
+            updateLanguage();
+        }
+
+        function loadLanguage() {
+            const savedLang = localStorage.getItem('language');
+            if (savedLang) {
+                currentLang = savedLang;
+                elements.langText.textContent = currentLang === 'kor' ? 'KOR' : 'ENG';
+                updateLanguage();
+            }
+        }
+        
+        function handleRecord() {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                const format = elements.formatSelector.value;
+                if (format === 'gif') {
+                    startGifRecording();
+                } else {
+                    startWebmRecording();
+                }
+            }
+        }
+        
+        function startGifRecording() {
+            try {
+                gifRecorder = new GIF({
+                    workers: 4,
+                    quality: 20,
+                    width: elements.canvas.width,
+                    height: elements.canvas.height,
+                    workerScript: 'gif.worker.js',
+                    repeat: 0,
+                    background: '#000000'
+                });
+
+                gifRecorder.on('finished', function(blob) {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `hangul-art-${Date.now()}.gif`;
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }, 100);
+                    
+                    elements.recordBtn.textContent = '녹화 시작';
+                    elements.recordBtn.disabled = false;
+                    elements.recordBtn.classList.remove('animate-pulse');
+                    gifRecorder = null;
+                });
+
+                isRecording = true;
+                elements.recordBtn.textContent = '녹화 중지';
+                elements.recordBtn.classList.add('animate-pulse');
+            } catch (e) {
+                console.error("GIF recording failed:", e);
+                alert("GIF 녹화에 실패했습니다: " + e.message);
+                isRecording = false;
+                elements.recordBtn.textContent = '녹화 시작';
+                elements.recordBtn.classList.remove('animate-pulse');
+            }
+        }
+
+        function startWebmRecording() {
+            try {
+                const canvasStream = elements.canvas.captureStream(30);
+                
+                mediaRecorder = new MediaRecorder(canvasStream, { mimeType: 'video/webm' });
+                recordedChunks = [];
+                mediaRecorder.ondataavailable = event => { if (event.data.size > 0) recordedChunks.push(event.data); };
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `hangul-art-${Date.now()}.webm`;
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }, 100);
+
+                    elements.recordBtn.textContent = '녹화 시작';
+                    elements.recordBtn.disabled = false;
+                    elements.recordBtn.classList.remove('animate-pulse');
+                    mediaRecorder = null;
+                    recordedChunks = [];
+                };
+                mediaRecorder.start();
+                isRecording = true;
+                elements.recordBtn.textContent = '녹화 중지';
+                elements.recordBtn.classList.add('animate-pulse');
+            } catch (e) {
+                console.error("WebM recording failed:", e);
+                alert("WebM 녹화에 실패했습니다: " + e.message);
+                isRecording = false;
+                elements.recordBtn.textContent = '녹화 시작';
+                elements.recordBtn.classList.remove('animate-pulse');
+            }
+        }
+
+        function stopRecording() {
+            isRecording = false;
+            elements.recordBtn.textContent = '저장 중...';
+            elements.recordBtn.disabled = true;
+            elements.recordBtn.classList.remove('animate-pulse');
+
+            if (gifRecorder) {
+                gifRecorder.render();
+            }
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+        }
+
+        function init() {
+            loadTheme();
+            loadLanguage();
+            slides.push(createSlide());
+            loadSlideState(0, false);
+            updateCanvasSize();
+            setupEventListeners();
+            animationFrameId = requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
