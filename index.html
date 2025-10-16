@@ -19,6 +19,7 @@
             transition: transform 0.3s ease-in-out; box-shadow: 0 0 30px rgba(0,0,0,0.5);
             cursor: grab;
             touch-action: none;
+            transform-origin: center center;
         }
         #canvas-wrapper:active { cursor: grabbing; }
         canvas { display: block; }
@@ -560,14 +561,7 @@
             const isMobile = window.innerWidth <= 768;
             const scaleFactor = isMobile ? 0.95 : 0.9;
             const scale = Math.min(containerW / w, containerH / h) * scaleFactor;
-            
-            const scaledWidth = w * scale;
-            const scaledHeight = h * scale;
-            const translateX = (containerW - scaledWidth) / 2;
-            const translateY = (containerH - scaledHeight) / 2;
-            
-            elements.canvasWrapper.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
-            elements.canvasWrapper.style.transformOrigin = 'top left';
+            elements.canvasWrapper.style.transform = `scale(${scale})`;
         }
         
         function animate(time) {
