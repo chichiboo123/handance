@@ -560,7 +560,14 @@
             const isMobile = window.innerWidth <= 768;
             const scaleFactor = isMobile ? 0.95 : 0.9;
             const scale = Math.min(containerW / w, containerH / h) * scaleFactor;
-            elements.canvasWrapper.style.transform = `scale(${scale})`;
+            
+            const scaledWidth = w * scale;
+            const scaledHeight = h * scale;
+            const translateX = (containerW - scaledWidth) / 2;
+            const translateY = (containerH - scaledHeight) / 2;
+            
+            elements.canvasWrapper.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+            elements.canvasWrapper.style.transformOrigin = 'top left';
         }
         
         function animate(time) {
